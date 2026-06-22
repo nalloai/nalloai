@@ -198,7 +198,23 @@ class NalloApp {
 
     const contentEl = document.createElement('div');
     contentEl.className = 'message-content';
-    contentEl.textContent = content;
+    
+    // Render markdown for AI messages
+    if (sender === 'assistant' && typeof marked !== 'undefined') {
+      try {
+        contentEl.innerHTML = marked.parse(content);
+        // Highlight code blocks
+        contentEl.querySelectorAll('pre code').forEach((block) => {
+          if (typeof hljs !== 'undefined') {
+            hljs.highlightElement(block);
+          }
+        });
+      } catch (e) {
+        contentEl.textContent = content;
+      }
+    } else {
+      contentEl.textContent = content;
+    }
 
     messageEl.appendChild(avatar);
     messageEl.appendChild(contentEl);
@@ -358,6 +374,15 @@ class NalloApp {
     messages.forEach(msg => {
       this.addMessageToUI(msg.content, msg.sender);
     });
+
+    // Apply syntax highlighting after rendering
+    setTimeout(() => {
+      if (typeof hljs !== 'undefined') {
+        messagesContainer.querySelectorAll('pre code').forEach((block) => {
+          hljs.highlightElement(block);
+        });
+      }
+    }, 100);
 
     this.scrollToBottom();
   }

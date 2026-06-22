@@ -897,6 +897,93 @@ html, body {
   }
 }
 
+.message-content h1,
+.message-content h2,
+.message-content h3,
+.message-content h4,
+.message-content h5,
+.message-content h6 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+}
+
+.message-content h1 { font-size: 18px; }
+.message-content h2 { font-size: 16px; }
+.message-content h3 { font-size: 15px; }
+
+.message-content p {
+  margin: 8px 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message-content li {
+  margin: 4px 0;
+}
+
+.message-content code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.message-content pre {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.message-content pre code {
+  background: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.message-content blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.message-content a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.message-content a:hover {
+  text-decoration: underline;
+}
+
+.message-content table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+}
+
+.message-content table th,
+.message-content table td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+}
+
+.message-content table th {
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
 @media (max-width: 480px) {
   .message-content {
     max-width: 100%;
