@@ -11,26 +11,29 @@ class SupabaseManager {
       const { url, anonKey } = NALLO_CONFIG.supabase;
       
       if (!window.supabase) {
-        console.error('Supabase library not loaded');
-        return false;
+        console.warn('Supabase library not loaded, continuing in guest mode');
+        this.isInitialized = true;
+        return true;
       }
 
       this.client = window.supabase.createClient(url, anonKey);
       
-      const { data: { user }, error } = await this.client.auth.getUser();
-      
-      if (error) {
-        console.log('No existing session:', error.message);
-      } else if (user) {
-        this.user = user;
-        console.log('User session restored:', user.email);
+      // Attempt to get user but don't crash if it fails
+      try {
+        const { data: { user }, error } = await this.client.auth.getUser();
+        if (!error && user) {
+          this.user = user;
+        }
+      } catch (e) {
+        console.warn('Supabase auth check failed:', e.message);
       }
 
       this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('Supabase initialization error:', error);
-      return false;
+      console.warn('Supabase initialization error:', error.message);
+      this.isInitialized = true; // Still mark as initialized to allow guest mode
+      return true;
     }
   }
 

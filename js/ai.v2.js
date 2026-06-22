@@ -124,9 +124,14 @@ class AIManager {
       };
     } catch (error) {
       console.error('Free AI API Error:', error);
+      // More descriptive error for the user
+      let errorMsg = "Nallo AI is having trouble connecting. ";
+      if (error.message.includes('fetch')) errorMsg += "Please check your internet connection.";
+      else errorMsg += "The model might be busy, please try again in a few seconds.";
+      
       return {
         success: false,
-        error: "Connection failed. Please refresh and try again.",
+        error: errorMsg,
         needsApiKey: false
       };
     }
