@@ -81,37 +81,36 @@ class AIManager {
     });
   }
 
-  // Fallback to public/free AI endpoints
+  // Use truly free AI endpoints (Pollinations.ai)
   async sendToPublicAPI(provider, userMessage, conversationHistory) {
     try {
-      // For demonstration, we'll use a public proxy or free endpoint
-      // In a real app, this would point to a serverless function that handles the keys securely
-      const response = await fetch('https://api.nallo.ai/v1/chat/free', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          message: userMessage,
-          history: conversationHistory,
-          model: this.currentModel
-        })
-      });
+      // Map providers to free models
+      let modelName = 'openai';
+      if (provider === 'anthropic') modelName = 'mistral'; // High quality alternative
+      if (provider === 'google') modelName = 'searchgpt'; // Creative alternative
+
+      const prompt = encodeURIComponent(userMessage);
+      const url = `https://text.pollinations.ai/${prompt}?model=${modelName}&json=true`;
+
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`${provider} free tier is currently busy. Please try again in a moment.`);
+        throw new Error(`${provider} is currently busy. Please try again in a moment.`);
       }
 
       const data = await response.json();
+      
       return {
         success: true,
-        message: data.message,
+        message: data.choices?.[0]?.message?.content || data.response || "I'm sorry, I couldn't generate a response.",
         model: this.currentModel
       };
     } catch (error) {
+      console.error('Free API Error:', error);
       return {
         success: false,
-        error: error.message,
-        needsApiKey: true
+        error: "Connection error. Please check your internet and try again.",
+        needsApiKey: false
       };
     }
   }
