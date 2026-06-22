@@ -81,13 +81,14 @@ class ChatManager {
 
       const user = supabaseManager.getCurrentUser();
       if (user) {
-        await supabaseManager.saveChatMessage(
+        // Non-blocking save
+        supabaseManager.saveChatMessage(
           user.id,
           this.currentChatId,
           userMessage,
           'user',
           aiManager.getCurrentModel().name
-        );
+        ).catch(err => console.warn('Supabase save error:', err));
       }
 
       const aiResponse = await aiManager.sendMessage(userMessage, this.messages);
@@ -107,17 +108,18 @@ class ChatManager {
       this.messages.push(assistantMsg);
 
       if (user) {
-        await supabaseManager.saveChatMessage(
+        // Non-blocking save
+        supabaseManager.saveChatMessage(
           user.id,
           this.currentChatId,
           aiResponse.message,
           'assistant',
           aiResponse.model
-        );
+        ).catch(err => console.warn('Supabase save error:', err));
 
         if (this.messages.length === 2) {
           const title = userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '');
-          await supabaseManager.updateChat(this.currentChatId, { title });
+          supabaseManager.updateChat(this.currentChatId, { title }).catch(err => console.warn('Supabase update error:', err));
         }
       }
 

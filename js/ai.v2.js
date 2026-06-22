@@ -81,35 +81,52 @@ class AIManager {
     });
   }
 
-  // Use truly free AI endpoints (Pollinations.ai)
+  // Use truly free AI endpoints (Pollinations.ai) with POST for better stability
   async sendToPublicAPI(provider, userMessage, conversationHistory) {
     try {
-      // Map providers to free models
-      let modelName = 'openai';
-      if (provider === 'anthropic') modelName = 'mistral'; // High quality alternative
-      if (provider === 'google') modelName = 'searchgpt'; // Creative alternative
+      // Map providers to high-quality free models
+      let modelName = 'openai'; // For GPT-4o Mini
+      if (provider === 'anthropic') modelName = 'mistral'; // For Claude-like quality
+      if (provider === 'google') modelName = 'searchgpt'; // For Gemini-like creativity
 
-      const prompt = encodeURIComponent(userMessage);
-      const url = `https://text.pollinations.ai/${prompt}?model=${modelName}&json=true`;
+      const messages = [
+        { role: 'system', content: `You are Nallo AI, a helpful assistant. You are currently acting as the ${provider} model.` },
+        ...conversationHistory.map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        })),
+        { role: 'user', content: userMessage }
+      ];
 
-      const response = await fetch(url);
+      const response = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messages,
+          model: modelName,
+          json: true
+        })
+      });
 
       if (!response.ok) {
-        throw new Error(`${provider} is currently busy. Please try again in a moment.`);
+        throw new Error(`${provider} is currently busy. Please try again.`);
       }
 
       const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || data.response;
       
+      if (!content) throw new Error('No response from AI');
+
       return {
         success: true,
-        message: data.choices?.[0]?.message?.content || data.response || "I'm sorry, I couldn't generate a response.",
+        message: content,
         model: this.currentModel
       };
     } catch (error) {
-      console.error('Free API Error:', error);
+      console.error('Free AI API Error:', error);
       return {
         success: false,
-        error: "Connection error. Please check your internet and try again.",
+        error: "Nallo AI is having trouble connecting. Please try again in a few seconds.",
         needsApiKey: false
       };
     }
