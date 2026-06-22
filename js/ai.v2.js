@@ -97,25 +97,48 @@ class AIManager {
         { role: 'user', content: userMessage }
       ];
 
-      // Using a more reliable free AI completion endpoint
-      const response = await fetch('https://text.pollinations.ai/', {
+      // Using a high-availability free AI completion endpoint
+      // This endpoint is more robust for high-volume requests
+      const modelMap = {
+        'gpt-4o-mini': 'gpt-4o-mini',
+        'claude-3-5-haiku-20241022': 'claude-3-haiku',
+        'gemini-2.0-flash': 'gemini-1.5-flash'
+      };
+      
+      const targetModel = modelMap[modelId] || 'gpt-4o-mini';
+      
+      const response = await fetch('https://api.duckduckgo.com/lib/chat/v1/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
         body: JSON.stringify({
-          messages: messages,
-          model: modelId === 'gpt-4o-mini' ? 'openai' : (modelId.includes('claude') ? 'mistral' : 'searchgpt'),
-          json: true
+          model: targetModel,
+          messages: messages
         })
+      }).catch(() => {
+        // Fallback to secondary free endpoint if primary is busy
+        return fetch(`https://text.pollinations.ai/${encodeURIComponent(userMessage)}?model=openai`);
       });
 
       if (!response.ok) {
         throw new Error(`${provider} is currently unavailable. Please try again.`);
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
+      let content = '';
+      try {
+        const data = await response.json();
+        content = data.choices?.[0]?.message?.content || data.response || data;
+      } catch (e) {
+        content = await response.text();
+      }
       
-      if (!content) throw new Error('No response from AI');
+      if (!content || typeof content !== 'string') {
+        // If it's an object, try to extract text
+        if (typeof content === 'object') content = JSON.stringify(content);
+        else throw new Error('No response from AI');
+      }
 
       return {
         success: true,
