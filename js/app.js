@@ -53,8 +53,7 @@ class NalloApp {
     const newChatBtn = document.getElementById('new-chat-btn');
     if (newChatBtn) newChatBtn.addEventListener('click', () => this.startNewChat());
 
-    document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
-    document.getElementById('save-settings-btn').addEventListener('click', () => this.saveSettings());
+    // Settings removed
 
     const chatInput = document.getElementById('chat-input');
     chatInput.addEventListener('input', () => {
@@ -316,30 +315,7 @@ class NalloApp {
     }
   }
 
-  openSettings() {
-    document.getElementById('settings-modal').classList.remove('hidden');
-    
-    const keys = aiManager.loadApiKeys();
-    if (keys.openai) document.getElementById('openai-key').value = keys.openai;
-    if (keys.anthropic) document.getElementById('anthropic-key').value = keys.anthropic;
-    if (keys.google) document.getElementById('gemini-key').value = keys.google;
-  }
-
-  closeSettings() {
-    document.getElementById('settings-modal').classList.add('hidden');
-  }
-
-  saveSettings() {
-    const keys = {
-      openai: document.getElementById('openai-key').value,
-      anthropic: document.getElementById('anthropic-key').value,
-      google: document.getElementById('gemini-key').value,
-    };
-
-    aiManager.saveApiKeys(keys);
-    this.showToast('Settings saved successfully', 'success');
-    this.closeSettings();
-  }
+  // Settings functions removed
 
   showAuth() {
     document.getElementById('auth-screen').classList.add('active');

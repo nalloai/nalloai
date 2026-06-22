@@ -2,29 +2,7 @@
 class AIManager {
   constructor() {
     this.currentModel = 'gpt4o-mini';
-    this.apiKeys = this.loadApiKeys();
     this.conversationHistory = [];
-  }
-
-  loadApiKeys() {
-    try {
-      const stored = localStorage.getItem(NALLO_CONFIG.storage.apiKeys);
-      return stored ? JSON.parse(stored) : {};
-    } catch (error) {
-      console.error('Error loading API keys:', error);
-      return {};
-    }
-  }
-
-  saveApiKeys(keys) {
-    try {
-      localStorage.setItem(NALLO_CONFIG.storage.apiKeys, JSON.stringify(keys));
-      this.apiKeys = keys;
-      return true;
-    } catch (error) {
-      console.error('Error saving API keys:', error);
-      return false;
-    }
   }
 
   setCurrentModel(modelId) {
