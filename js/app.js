@@ -186,12 +186,7 @@ class NalloApp {
         this.addMessageToUI(result.message.content, 'assistant');
         this.scrollToBottom();
       } else {
-        if (result.needsApiKey) {
-          this.showToast('Add your API keys in settings to use this model', 'error');
-          this.openSettings();
-        } else {
-          this.showToast(result.error || 'Failed to get response. Please try again.', 'error');
-        }
+        this.showToast(result.error || 'Failed to get response. Please try again.', 'error');
       }
     } catch (error) {
       this.removeLoadingIndicator();
