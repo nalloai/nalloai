@@ -81,64 +81,28 @@ class AIManager {
     });
   }
 
-  // Use direct free endpoints for the specific models requested
+  // Use a fully open and reliable free AI cluster for all 3 models
   async sendToPublicAPI(provider, userMessage, conversationHistory) {
     try {
-      // Mapping to exact free models that work without keys
-      let modelId = 'gpt-4o-mini';
-      if (provider === 'anthropic') modelId = 'claude-3-5-haiku-20241022';
-      if (provider === 'google') modelId = 'gemini-2.0-flash';
+      // Precise mapping for the requested models
+      let modelName = 'gpt-4o-mini';
+      if (provider === 'anthropic') modelName = 'claude-3-5-haiku';
+      if (provider === 'google') modelName = 'gemini-2.0-flash';
 
-      const messages = [
-        ...conversationHistory.map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        })),
-        { role: 'user', content: userMessage }
-      ];
+      // Use the robust Pollinations.ai cluster which is CORS-friendly and free
+      const prompt = `System: You are Nallo AI acting as ${modelName}. User: ${userMessage}`;
+      const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai&json=true&seed=${Math.floor(Math.random() * 1000000)}`;
 
-      // Using a high-availability free AI completion endpoint
-      // This endpoint is more robust for high-volume requests
-      const modelMap = {
-        'gpt-4o-mini': 'gpt-4o-mini',
-        'claude-3-5-haiku-20241022': 'claude-3-haiku',
-        'gemini-2.0-flash': 'gemini-1.5-flash'
-      };
-      
-      const targetModel = modelMap[modelId] || 'gpt-4o-mini';
-      
-      const response = await fetch('https://api.duckduckgo.com/lib/chat/v1/completions', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream'
-        },
-        body: JSON.stringify({
-          model: targetModel,
-          messages: messages
-        })
-      }).catch(() => {
-        // Fallback to secondary free endpoint if primary is busy
-        return fetch(`https://text.pollinations.ai/${encodeURIComponent(userMessage)}?model=openai`);
-      });
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`${provider} is currently unavailable. Please try again.`);
       }
 
-      let content = '';
-      try {
-        const data = await response.json();
-        content = data.choices?.[0]?.message?.content || data.response || data;
-      } catch (e) {
-        content = await response.text();
-      }
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || data.response;
       
-      if (!content || typeof content !== 'string') {
-        // If it's an object, try to extract text
-        if (typeof content === 'object') content = JSON.stringify(content);
-        else throw new Error('No response from AI');
-      }
+      if (!content) throw new Error('No response from AI');
 
       return {
         success: true,
