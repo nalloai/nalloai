@@ -170,20 +170,26 @@ class NalloApp {
 
     this.showLoadingIndicator();
 
-    const result = await chatManager.sendMessage(message);
+    try {
+      const result = await chatManager.sendMessage(message);
 
-    this.removeLoadingIndicator();
+      this.removeLoadingIndicator();
 
-    if (result.success) {
-      this.addMessageToUI(result.message.content, 'assistant');
-      this.scrollToBottom();
-    } else {
-      if (result.needsApiKey) {
-        this.showToast(result.error, 'error');
-        this.openSettings();
+      if (result.success) {
+        this.addMessageToUI(result.message.content, 'assistant');
+        this.scrollToBottom();
       } else {
-        this.showToast(result.error || 'Failed to get response', 'error');
+        if (result.needsApiKey) {
+          this.showToast('Add your API keys in settings to use this model', 'error');
+          this.openSettings();
+        } else {
+          this.showToast(result.error || 'Failed to get response. Please try again.', 'error');
+        }
       }
+    } catch (error) {
+      this.removeLoadingIndicator();
+      this.showToast('An unexpected error occurred. Please try again.', 'error');
+      console.error('Send message error:', error);
     }
   }
 
@@ -235,6 +241,7 @@ class NalloApp {
         <span></span>
         <span></span>
       </div>
+      <div class="typing-indicator">Thinking...</div>
     `;
     messagesContainer.appendChild(loadingEl);
     this.scrollToBottom();
@@ -393,9 +400,11 @@ class NalloApp {
     toast.className = `toast ${type}`;
     toast.classList.remove('hidden');
 
+    // Longer timeout for error messages
+    const timeout = type === 'error' ? 5000 : 3000;
     setTimeout(() => {
       toast.classList.add('hidden');
-    }, 3000);
+    }, timeout);
   }
 }
 
