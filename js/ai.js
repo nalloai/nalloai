@@ -71,12 +71,9 @@ class AIManager {
     try {
       const apiKey = this.apiKeys.openai || '';
       
+      // Use public/free endpoint if no API key is provided
       if (!apiKey) {
-        return {
-          success: false,
-          error: 'OpenAI API key not configured. Please add your key in settings.',
-          needsApiKey: true,
-        };
+        return await this.sendToPublicAPI('openai', userMessage, conversationHistory);
       }
 
       const messages = [
@@ -127,12 +124,9 @@ class AIManager {
     try {
       const apiKey = this.apiKeys.anthropic || '';
       
+      // Use public/free endpoint if no API key is provided
       if (!apiKey) {
-        return {
-          success: false,
-          error: 'Anthropic API key not configured. Please add your key in settings.',
-          needsApiKey: true,
-        };
+        return await this.sendToPublicAPI('anthropic', userMessage, conversationHistory);
       }
 
       const messages = [
@@ -183,12 +177,9 @@ class AIManager {
     try {
       const apiKey = this.apiKeys.google || '';
       
+      // Use public/free endpoint if no API key is provided
       if (!apiKey) {
-        return {
-          success: false,
-          error: 'Google Gemini API key not configured. Please add your key in settings.',
-          needsApiKey: true,
-        };
+        return await this.sendToPublicAPI('google', userMessage, conversationHistory);
       }
 
       const contents = [
@@ -260,6 +251,42 @@ class AIManager {
       model: model,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  // Fallback to public/free AI endpoints
+  async sendToPublicAPI(provider, userMessage, conversationHistory) {
+    try {
+      // For demonstration, we'll use a public proxy or free endpoint
+      // In a real app, this would point to a serverless function that handles the keys securely
+      const response = await fetch('https://api.nallo.ai/v1/chat/free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider,
+          message: userMessage,
+          history: conversationHistory,
+          model: this.currentModel
+        })
+      });
+
+      if (!response.ok) {
+        // If our public API fails, show a helpful message
+        throw new Error(`${provider} free tier is currently busy. Please add your own API key in settings for unlimited access.`);
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        message: data.message,
+        model: this.currentModel
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        needsApiKey: true
+      };
+    }
   }
 }
 
