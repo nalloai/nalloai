@@ -271,27 +271,47 @@ class NalloApp {
   }
 
   async startNewChat() {
+    // Reset UI
     chatManager.clearMessages();
-    document.getElementById('messages').innerHTML = '';
-    document.getElementById('welcome-screen').style.display = 'flex';
-    document.getElementById('chat-input').value = '';
-    document.getElementById('send-btn').disabled = true;
+    const messagesContainer = document.getElementById('messages');
+    if (messagesContainer) messagesContainer.innerHTML = '';
+    
+    const welcomeScreen = document.getElementById('welcome-screen');
+    if (welcomeScreen) welcomeScreen.style.display = 'flex';
+    
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+    }
+    
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) sendBtn.disabled = true;
 
+    // Create new chat in manager/backend
     const result = await chatManager.createNewChat();
     if (!result.success) {
-      this.showToast('Failed to create new chat', 'error');
+      console.error('New chat creation failed:', result.error);
     }
 
-    this.toggleSidebar();
+    // Close sidebar if it's open
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('open')) {
+      this.toggleSidebar();
+    }
+    
     this.loadChatHistory();
+    this.showToast('New chat started', 'info');
   }
 
   toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
+    if (sidebar && overlay) {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    }
   }
 
   openSettings() {
