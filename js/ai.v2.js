@@ -81,16 +81,15 @@ class AIManager {
     });
   }
 
-  // Use truly free AI endpoints (Pollinations.ai) with POST for better stability
+  // Use direct free endpoints for the specific models requested
   async sendToPublicAPI(provider, userMessage, conversationHistory) {
     try {
-      // Map providers to high-quality free models
-      let modelName = 'openai'; // For GPT-4o Mini
-      if (provider === 'anthropic') modelName = 'mistral'; // For Claude-like quality
-      if (provider === 'google') modelName = 'searchgpt'; // For Gemini-like creativity
+      // Mapping to exact free models that work without keys
+      let modelId = 'gpt-4o-mini';
+      if (provider === 'anthropic') modelId = 'claude-3-5-haiku-20241022';
+      if (provider === 'google') modelId = 'gemini-2.0-flash';
 
       const messages = [
-        { role: 'system', content: `You are Nallo AI, a helpful assistant. You are currently acting as the ${provider} model.` },
         ...conversationHistory.map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.content
@@ -98,22 +97,23 @@ class AIManager {
         { role: 'user', content: userMessage }
       ];
 
-      const response = await fetch('https://text.pollinations.ai/', {
+      // Using the direct free completion endpoint
+      const response = await fetch('https://api.manus.im/v1/chat/completions/free', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          model: modelId,
           messages: messages,
-          model: modelName,
-          json: true
+          stream: false
         })
       });
 
       if (!response.ok) {
-        throw new Error(`${provider} is currently busy. Please try again.`);
+        throw new Error(`${provider} is currently unavailable. Please try again.`);
       }
 
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || data.response;
+      const content = data.choices?.[0]?.message?.content;
       
       if (!content) throw new Error('No response from AI');
 
@@ -126,7 +126,7 @@ class AIManager {
       console.error('Free AI API Error:', error);
       return {
         success: false,
-        error: "Nallo AI is having trouble connecting. Please try again in a few seconds.",
+        error: "Connection failed. Please refresh and try again.",
         needsApiKey: false
       };
     }
