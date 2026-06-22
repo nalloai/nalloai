@@ -97,14 +97,14 @@ class AIManager {
         { role: 'user', content: userMessage }
       ];
 
-      // Using the direct free completion endpoint
-      const response = await fetch('https://api.manus.im/v1/chat/completions/free', {
+      // Using a more reliable free AI completion endpoint
+      const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: modelId,
           messages: messages,
-          stream: false
+          model: modelId === 'gpt-4o-mini' ? 'openai' : (modelId.includes('claude') ? 'mistral' : 'searchgpt'),
+          json: true
         })
       });
 
