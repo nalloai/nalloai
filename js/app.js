@@ -41,10 +41,17 @@ class NalloApp {
       });
     });
 
-    document.getElementById('menu-btn').addEventListener('click', () => this.toggleSidebar());
-    document.getElementById('sidebar-close-btn').addEventListener('click', () => this.toggleSidebar());
-    document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
-    document.getElementById('new-chat-btn').addEventListener('click', () => this.startNewChat());
+    const menuBtn = document.getElementById('menu-btn');
+    if (menuBtn) menuBtn.addEventListener('click', () => this.toggleSidebar());
+
+    const closeBtn = document.getElementById('sidebar-close') || document.getElementById('sidebar-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', () => this.toggleSidebar());
+
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.addEventListener('click', () => this.toggleSidebar());
+
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) newChatBtn.addEventListener('click', () => this.startNewChat());
 
     document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
     document.getElementById('save-settings-btn').addEventListener('click', () => this.saveSettings());
@@ -428,24 +435,31 @@ class NalloApp {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await new Promise(resolve => {
-    const checkInterval = setInterval(() => {
-      if (supabaseManager.isInitialized) {
-        clearInterval(checkInterval);
-        resolve();
-      }
-    }, 100);
-  });
-
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize app immediately without waiting for Supabase
   window.app = new NalloApp();
 
-  const user = supabaseManager.getCurrentUser();
-  if (user) {
-    window.app.currentUser = user;
-    window.app.isGuest = false;
-    window.app.showApp();
-    window.app.updateUserDisplay();
-    window.app.loadChatHistory();
-  }
+  // Handle Supabase initialization in the background
+  const initSupabase = async () => {
+    let attempts = 0;
+    const maxAttempts = 50; // 5 seconds
+    
+    const checkInit = setInterval(() => {
+      attempts++;
+      if (supabaseManager.isInitialized || attempts >= maxAttempts) {
+        clearInterval(checkInit);
+        
+        const user = supabaseManager.getCurrentUser();
+        if (user) {
+          window.app.currentUser = user;
+          window.app.isGuest = false;
+          window.app.showApp();
+          window.app.updateUserDisplay();
+          window.app.loadChatHistory();
+        }
+      }
+    }, 100);
+  };
+
+  initSupabase();
 });
