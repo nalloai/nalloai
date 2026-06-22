@@ -1,0 +1,397 @@
+// Main Application Logic
+class NalloApp {
+  constructor() {
+    this.currentUser = null;
+    this.isGuest = false;
+    this.initializeEventListeners();
+  }
+
+  initializeEventListeners() {
+    document.getElementById('login-btn').addEventListener('click', () => this.handleLogin());
+    document.getElementById('signup-btn').addEventListener('click', () => this.handleSignup());
+    document.getElementById('guest-btn').addEventListener('click', () => this.handleGuestLogin());
+    document.getElementById('logout-btn').addEventListener('click', () => this.handleLogout());
+
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => this.switchAuthTab(e.target.dataset.tab));
+    });
+
+    document.getElementById('send-btn').addEventListener('click', () => this.sendMessage());
+    document.getElementById('chat-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.sendMessage();
+      }
+    });
+
+    document.getElementById('chat-input').addEventListener('input', (e) => {
+      e.target.style.height = 'auto';
+      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+    });
+
+    document.querySelectorAll('.model-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.selectModel(e.currentTarget));
+    });
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        const prompt = e.target.dataset.prompt;
+        document.getElementById('chat-input').value = prompt;
+        this.sendMessage();
+      });
+    });
+
+    document.getElementById('menu-btn').addEventListener('click', () => this.toggleSidebar());
+    document.getElementById('sidebar-close-btn').addEventListener('click', () => this.toggleSidebar());
+    document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
+    document.getElementById('new-chat-btn').addEventListener('click', () => this.startNewChat());
+
+    document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
+    document.getElementById('save-settings-btn').addEventListener('click', () => this.saveSettings());
+
+    const chatInput = document.getElementById('chat-input');
+    chatInput.addEventListener('input', () => {
+      const sendBtn = document.getElementById('send-btn');
+      sendBtn.disabled = !chatInput.value.trim();
+    });
+  }
+
+  async handleLogin() {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please fill in all fields';
+      return;
+    }
+
+    try {
+      const result = await supabaseManager.signIn(email, password);
+      
+      if (result.success) {
+        this.currentUser = result.user;
+        this.isGuest = false;
+        this.showApp();
+        this.updateUserDisplay();
+      } else {
+        errorEl.textContent = result.error || 'Login failed';
+      }
+    } catch (error) {
+      errorEl.textContent = 'An error occurred. Please try again.';
+    }
+  }
+
+  async handleSignup() {
+    const name = document.getElementById('signup-name').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const errorEl = document.getElementById('signup-error');
+    const successEl = document.getElementById('signup-success');
+
+    errorEl.textContent = '';
+    successEl.textContent = '';
+
+    if (!name || !email || !password) {
+      errorEl.textContent = 'Please fill in all fields';
+      return;
+    }
+
+    if (password.length < 6) {
+      errorEl.textContent = 'Password must be at least 6 characters';
+      return;
+    }
+
+    try {
+      const result = await supabaseManager.signUp(email, password, name);
+      
+      if (result.success) {
+        successEl.textContent = 'Account created! Please check your email to confirm.';
+        document.getElementById('signup-name').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-password').value = '';
+        
+        setTimeout(() => {
+          this.switchAuthTab('login');
+        }, 2000);
+      } else {
+        errorEl.textContent = result.error || 'Signup failed';
+      }
+    } catch (error) {
+      errorEl.textContent = 'An error occurred. Please try again.';
+    }
+  }
+
+  handleGuestLogin() {
+    this.currentUser = null;
+    this.isGuest = true;
+    this.showApp();
+    this.updateUserDisplay();
+  }
+
+  async handleLogout() {
+    if (this.isGuest) {
+      this.showAuth();
+      return;
+    }
+
+    const result = await supabaseManager.signOut();
+    if (result.success) {
+      this.currentUser = null;
+      this.isGuest = false;
+      this.showAuth();
+    }
+  }
+
+  switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    document.getElementById(`${tab}-form`).classList.add('active');
+
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('signup-error').textContent = '';
+    document.getElementById('signup-success').textContent = '';
+  }
+
+  async sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    document.getElementById('welcome-screen').style.display = 'none';
+
+    this.addMessageToUI(message, 'user');
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('send-btn').disabled = true;
+
+    this.showLoadingIndicator();
+
+    const result = await chatManager.sendMessage(message);
+
+    this.removeLoadingIndicator();
+
+    if (result.success) {
+      this.addMessageToUI(result.message.content, 'assistant');
+      this.scrollToBottom();
+    } else {
+      if (result.needsApiKey) {
+        this.showToast(result.error, 'error');
+        this.openSettings();
+      } else {
+        this.showToast(result.error || 'Failed to get response', 'error');
+      }
+    }
+  }
+
+  addMessageToUI(content, sender) {
+    const messagesContainer = document.getElementById('messages');
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${sender}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = sender === 'user' ? 'You' : 'AI';
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'message-content';
+    contentEl.textContent = content;
+
+    messageEl.appendChild(avatar);
+    messageEl.appendChild(contentEl);
+    messagesContainer.appendChild(messageEl);
+
+    this.scrollToBottom();
+  }
+
+  showLoadingIndicator() {
+    const messagesContainer = document.getElementById('messages');
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'message';
+    loadingEl.id = 'loading-indicator';
+    loadingEl.innerHTML = `
+      <div class="message-avatar">AI</div>
+      <div class="message-loading">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    `;
+    messagesContainer.appendChild(loadingEl);
+    this.scrollToBottom();
+  }
+
+  removeLoadingIndicator() {
+    const loading = document.getElementById('loading-indicator');
+    if (loading) loading.remove();
+  }
+
+  scrollToBottom() {
+    const container = document.getElementById('chat-container');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  selectModel(btn) {
+    document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const modelId = btn.dataset.model;
+    const modelLabel = btn.dataset.label;
+    
+    aiManager.setCurrentModel(modelId);
+    document.getElementById('current-model-name').textContent = modelLabel;
+
+    this.showToast(`Switched to ${modelLabel}`, 'success');
+  }
+
+  async startNewChat() {
+    chatManager.clearMessages();
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('welcome-screen').style.display = 'flex';
+    document.getElementById('chat-input').value = '';
+    document.getElementById('send-btn').disabled = true;
+
+    const result = await chatManager.createNewChat();
+    if (!result.success) {
+      this.showToast('Failed to create new chat', 'error');
+    }
+
+    this.toggleSidebar();
+    this.loadChatHistory();
+  }
+
+  toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+
+  openSettings() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    
+    const keys = aiManager.loadApiKeys();
+    if (keys.openai) document.getElementById('openai-key').value = keys.openai;
+    if (keys.anthropic) document.getElementById('anthropic-key').value = keys.anthropic;
+    if (keys.google) document.getElementById('gemini-key').value = keys.google;
+  }
+
+  closeSettings() {
+    document.getElementById('settings-modal').classList.add('hidden');
+  }
+
+  saveSettings() {
+    const keys = {
+      openai: document.getElementById('openai-key').value,
+      anthropic: document.getElementById('anthropic-key').value,
+      google: document.getElementById('gemini-key').value,
+    };
+
+    aiManager.saveApiKeys(keys);
+    this.showToast('Settings saved successfully', 'success');
+    this.closeSettings();
+  }
+
+  showAuth() {
+    document.getElementById('auth-screen').classList.add('active');
+    document.getElementById('app-screen').classList.remove('active');
+  }
+
+  showApp() {
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('app-screen').classList.add('active');
+    
+    this.startNewChat();
+  }
+
+  updateUserDisplay() {
+    const nameEl = document.getElementById('user-name-display');
+    const emailEl = document.getElementById('user-email-display');
+    const avatarEl = document.getElementById('user-avatar');
+
+    if (this.isGuest) {
+      nameEl.textContent = 'Guest';
+      emailEl.textContent = 'guest mode';
+      avatarEl.textContent = 'G';
+    } else if (this.currentUser) {
+      const name = this.currentUser.user_metadata?.full_name || this.currentUser.email;
+      nameEl.textContent = name;
+      emailEl.textContent = this.currentUser.email;
+      avatarEl.textContent = name.charAt(0).toUpperCase();
+    }
+  }
+
+  async loadChatHistory() {
+    if (this.isGuest || !this.currentUser) return;
+
+    const historyList = document.getElementById('chat-history-list');
+    const result = await supabaseManager.getUserChats(this.currentUser.id);
+
+    if (result.success && result.chats && result.chats.length > 0) {
+      historyList.innerHTML = '';
+      result.chats.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = 'chat-history-item';
+        item.textContent = chat.title;
+        item.addEventListener('click', async () => {
+          await chatManager.loadChat(chat.id);
+          this.displayChatMessages();
+          this.toggleSidebar();
+        });
+        historyList.appendChild(item);
+      });
+    } else {
+      historyList.innerHTML = '<div class="history-empty">No chats yet. Start a conversation!</div>';
+    }
+  }
+
+  displayChatMessages() {
+    const messagesContainer = document.getElementById('messages');
+    messagesContainer.innerHTML = '';
+    document.getElementById('welcome-screen').style.display = 'none';
+
+    const messages = chatManager.getMessages();
+    messages.forEach(msg => {
+      this.addMessageToUI(msg.content, msg.sender);
+    });
+
+    this.scrollToBottom();
+  }
+
+  showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.classList.remove('hidden');
+
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await new Promise(resolve => {
+    const checkInterval = setInterval(() => {
+      if (supabaseManager.isInitialized) {
+        clearInterval(checkInterval);
+        resolve();
+      }
+    }, 100);
+  });
+
+  window.app = new NalloApp();
+
+  const user = supabaseManager.getCurrentUser();
+  if (user) {
+    window.app.currentUser = user;
+    window.app.isGuest = false;
+    window.app.showApp();
+    window.app.updateUserDisplay();
+    window.app.loadChatHistory();
+  }
+});
